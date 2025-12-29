@@ -328,6 +328,9 @@ public class AppointmentService {
             appointment.setReason(request.getReason());
         }
 
+        // 🔧 FIX: Forcer la mise à jour de updatedAt
+        appointment.setUpdatedAt(LocalDateTime.now());
+
         // 4. Sauvegarder
         Appointment updatedAppointment = appointmentRepository.save(appointment);
 
@@ -369,6 +372,9 @@ public class AppointmentService {
         if (request.getCancellationReason() != null) {
             appointment.setCancellationReason(request.getCancellationReason());
         }
+
+        // 🔧 FIX: Forcer la mise à jour de updatedAt
+        appointment.setUpdatedAt(LocalDateTime.now());
 
         // 5. Créer notification annulation
         createCancellationNotification(appointment, cancelledBy);
@@ -413,6 +419,9 @@ public class AppointmentService {
         // 4. Mettre à jour doctor + dateTime
         appointment.setDoctor(newDoctor);
         appointment.setDateTime(request.getNewDateTime());
+
+        // 🔧 FIX: Forcer la mise à jour de updatedAt
+        appointment.setUpdatedAt(LocalDateTime.now());
 
         // 5. Créer notification déplacement
         createModificationNotification(appointment, "déplacé");
