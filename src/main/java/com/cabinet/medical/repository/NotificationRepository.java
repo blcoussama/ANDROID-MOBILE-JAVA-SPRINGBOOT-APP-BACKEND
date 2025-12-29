@@ -162,4 +162,42 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
      * @return Nombre de notifications en attente
      */
     long countBySentAtIsNull();
+
+    // ═══════════════════════════════════════════════════════════
+    // MÉTHODES PAR ID (POUR NOTIFICATIONSERVICE)
+    // ═══════════════════════════════════════════════════════════
+
+    /**
+     * Trouve toutes les notifications d'un utilisateur (par ID)
+     * Version par ID pour NotificationService
+     *
+     * @param userId ID de l'utilisateur
+     * @return Liste notifications (plus récente en premier)
+     */
+    List<Notification> findByUserIdOrderByCreatedAtDesc(Long userId);
+
+    /**
+     * Trouve toutes les notifications d'un RDV (par ID)
+     * Version par ID pour NotificationService
+     *
+     * @param appointmentId ID du rendez-vous
+     * @return Liste notifications du RDV
+     */
+    List<Notification> findByAppointmentIdOrderByCreatedAtDesc(Long appointmentId);
+
+    /**
+     * Compte les notifications d'un utilisateur (par ID)
+     *
+     * @param userId ID de l'utilisateur
+     * @return Nombre de notifications
+     */
+    long countByUserId(Long userId);
+
+    /**
+     * Compte les notifications non envoyées d'un utilisateur (par ID)
+     *
+     * @param userId ID de l'utilisateur
+     * @return Nombre de notifications en attente
+     */
+    long countByUserIdAndSentAtIsNull(Long userId);
 }

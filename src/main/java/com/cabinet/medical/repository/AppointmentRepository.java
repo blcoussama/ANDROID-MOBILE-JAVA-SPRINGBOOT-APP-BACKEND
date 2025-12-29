@@ -284,4 +284,15 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
             @Param("doctor") Doctor doctor,
             @Param("start") LocalDateTime start,
             @Param("end") LocalDateTime end);
+
+    /**
+     * Trouve RDV dans une période (tous médecins)
+     * Utilisé pour DashboardService statistiques personnalisées
+     *
+     * @param start Début période
+     * @param end   Fin période
+     * @return Liste RDV dans la période
+     */
+    List<Appointment> findByDateTimeBetween(LocalDateTime start, LocalDateTime end);
+
 }
