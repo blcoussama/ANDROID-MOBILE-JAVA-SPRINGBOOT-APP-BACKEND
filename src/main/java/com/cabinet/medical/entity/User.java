@@ -127,6 +127,40 @@ public class User {
     }
 
     // ═══════════════════════════════════════════════════════════
+    // RELATIONS AVEC PATIENT ET DOCTOR (OneToOne bidirectionnelles)
+    // ═══════════════════════════════════════════════════════════
+
+    /**
+     * Relation OneToOne avec Patient (côté inverse)
+     * 
+     * mappedBy = "user" : Patient est propriétaire de la relation (a la FK)
+     * cascade = CascadeType.ALL : Toutes opérations se propagent
+     * orphanRemoval = true : Si User supprimé → Patient supprimé automatiquement
+     * 
+     * LOGIQUE CASCADE:
+     * - DELETE User → Patient supprimé automatiquement
+     * - UPDATE User → Patient mis à jour si besoin
+     * - PERSIST User → Patient persisté si nouveau
+     */
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Patient patient;
+
+    /**
+     * Relation OneToOne avec Doctor (côté inverse)
+     * 
+     * mappedBy = "user" : Doctor est propriétaire de la relation (a la FK)
+     * cascade = CascadeType.ALL : Toutes opérations se propagent
+     * orphanRemoval = true : Si User supprimé → Doctor supprimé automatiquement
+     * 
+     * LOGIQUE CASCADE:
+     * - DELETE User → Doctor supprimé automatiquement
+     * - UPDATE User → Doctor mis à jour si besoin
+     * - PERSIST User → Doctor persisté si nouveau
+     */
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Doctor doctor;
+
+    // ═══════════════════════════════════════════════════════════
     // ÉNUMÉRATION ROLE
     // ═══════════════════════════════════════════════════════════
 

@@ -297,6 +297,79 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Gérer IllegalOperationException (403 FORBIDDEN)
+     *
+     * DÉCLENCHÉE PAR:
+     * - Tentative de modifier un admin (UC-A06)
+     * - Tentative de supprimer un admin (UC-A07)
+     * - Opération interdite par règles métier
+     *
+     * RÉPONSE:
+     * {
+     * "timestamp": "2025-12-29T10:00:00",
+     * "status": 403,
+     * "error": "Forbidden",
+     * "message": "Vous ne pouvez pas modifier un administrateur",
+     * "path": "/api/users/5",
+     * "errors": null
+     * }
+     *
+     * @param ex      IllegalOperationException
+     * @param request HttpServletRequest
+     * @return ResponseEntity<ErrorResponse> avec status 403
+     */
+    @ExceptionHandler(IllegalOperationException.class)
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    public ResponseEntity<ErrorResponse> handleIllegalOperationException(
+            IllegalOperationException ex,
+            HttpServletRequest request) {
+
+        ErrorResponse error = ErrorResponse.of(
+                403,
+                "Forbidden",
+                ex.getMessage(),
+                request.getRequestURI());
+
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(error);
+    }
+
+    /**
+     * Gérer IllegalArgumentException (400 BAD REQUEST)
+     *
+     * DÉCLENCHÉE PAR:
+     * - startTime >= endTime (TimeSlotService)
+     * - Validation métier échouée
+     *
+     * RÉPONSE:
+     * {
+     * "timestamp": "2025-12-29T20:16:14",
+     * "status": 400,
+     * "error": "Bad Request",
+     * "message": "L'heure de début doit être avant l'heure de fin",
+     * "path": "/api/timeslots",
+     * "errors": null
+     * }
+     *
+     * @param ex      IllegalArgumentException
+     * @param request HttpServletRequest
+     * @return ResponseEntity<ErrorResponse> avec status 400
+     */
+    @ExceptionHandler(IllegalArgumentException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ResponseEntity<ErrorResponse> handleIllegalArgumentException(
+            IllegalArgumentException ex,
+            HttpServletRequest request) {
+
+        ErrorResponse error = ErrorResponse.of(
+                400,
+                "Bad Request",
+                ex.getMessage(),
+                request.getRequestURI());
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+    }
+
+    /**
      * Gérer toutes les autres exceptions non gérées (500 INTERNAL SERVER ERROR)
      *
      * DÉCLENCHÉE PAR:

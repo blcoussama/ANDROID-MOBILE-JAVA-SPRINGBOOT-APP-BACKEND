@@ -1,11 +1,13 @@
 package com.cabinet.medical.service;
 
 import com.cabinet.medical.dto.request.CreateUserRequest;
+import com.cabinet.medical.dto.request.UpdateUserRequest;
 import com.cabinet.medical.dto.response.UserResponse;
 import com.cabinet.medical.entity.Doctor;
 import com.cabinet.medical.entity.Patient;
 import com.cabinet.medical.entity.User;
 import com.cabinet.medical.exception.EmailAlreadyExistsException;
+import com.cabinet.medical.exception.IllegalOperationException;
 import com.cabinet.medical.exception.ResourceNotFoundException;
 import com.cabinet.medical.repository.DoctorRepository;
 import com.cabinet.medical.repository.PatientRepository;
@@ -258,10 +260,16 @@ public class UserService {
      * @throws EmailAlreadyExistsException si nouvel email existe déjà
      */
     @Transactional
-    public UserResponse updateUser(Long userId, CreateUserRequest request) {
+    public UserResponse updateUser(Long userId, UpdateUserRequest request) {
         // 1. Charger User existant
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Utilisateur", "id", userId));
+
+        // 🛡️ SÉCURITÉ: Empêcher modification d'un admin
+        if (user.getRole() == User.Role.ADMIN) {
+            throw new IllegalOperationException(
+                    "Vous ne pouvez pas modifier un administrateur");
+        }
 
         // 2. Vérifier nouvel email unique si changé (RG-01)
         if (!user.getEmail().equals(request.getEmail())) {
@@ -276,15 +284,19 @@ public class UserService {
         user.setLastName(request.getLastName());
         user.setPhone(request.getPhone());
 
-        // Mettre à jour password seulement si fourni (non vide)
-        if (request.getPassword() != null && !request.getPassword().isEmpty()) {
+        // 4. Mettre à jour password SEULEMENT si fourni ET non vide
+        if (request.getPassword() != null && !request.getPassword().trim().isEmpty()) {
+            // Valider longueur minimum (6 caractères)
+            if (request.getPassword().length() < 6) {
+                throw new IllegalArgumentException("Le mot de passe doit contenir au moins 6 caractères");
+            }
             user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
         }
 
-        // 4. Sauvegarder
+        // 5. Sauvegarder
         User updatedUser = userRepository.save(user);
 
-        // 5. Retourner UserResponse
+        // 6. Retourner UserResponse
         return UserResponse.from(updatedUser);
     }
 
@@ -309,6 +321,12 @@ public class UserService {
         // 1. Vérifier User existe
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Utilisateur", "id", userId));
+
+        // 🛡️ SÉCURITÉ: Empêcher suppression d'un admin
+        if (user.getRole() == User.Role.ADMIN) {
+            throw new IllegalOperationException(
+                    "Vous ne pouvez pas supprimer un administrateur");
+        }
 
         // 2 & 3. Supprimer (cascade automatique via JPA)
         userRepository.delete(user);
