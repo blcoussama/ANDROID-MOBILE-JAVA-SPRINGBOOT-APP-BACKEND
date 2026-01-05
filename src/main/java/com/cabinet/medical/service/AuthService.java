@@ -4,12 +4,14 @@ import com.cabinet.medical.dto.request.LoginRequest;
 import com.cabinet.medical.dto.request.RegisterRequest;
 import com.cabinet.medical.dto.response.LoginResponse;
 import com.cabinet.medical.entity.Patient;
+import com.cabinet.medical.entity.Doctor;
 import com.cabinet.medical.entity.User;
 import com.cabinet.medical.exception.EmailAlreadyExistsException;
 import com.cabinet.medical.exception.InvalidCredentialsException;
 import com.cabinet.medical.repository.PatientRepository;
+import com.cabinet.medical.repository.DoctorRepository;
 import com.cabinet.medical.repository.UserRepository;
-import com.cabinet.medical.security.JwtUtil; // ⭐ NOUVEAU
+import com.cabinet.medical.security.JwtUtil;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,7 +24,7 @@ import java.time.LocalDateTime;
  * RESPONSABILITÉS:
  * - Inscription des patients (UC-P01)
  * - Connexion (login) de tous les utilisateurs (UC-P02, UC-D01, UC-A01)
- * - Génération de tokens JWT ⭐ NOUVEAU
+ * - Génération de tokens JWT
  * - Hashage sécurisé des mots de passe (BCrypt)
  * - Création automatique de l'entité Patient lors inscription
  * - Validation des identifiants
@@ -37,30 +39,33 @@ import java.time.LocalDateTime;
  * - Passwords hashés avec BCrypt (coût: 10)
  * - JAMAIS de password en clair en base
  * - Vérification hash lors login
- * - JWT token généré et signé ⭐ NOUVEAU
+ * - JWT token généré et signé
  */
 @Service
 public class AuthService {
 
     private final UserRepository userRepository;
     private final PatientRepository patientRepository;
+    private final DoctorRepository doctorRepository;
     private final BCryptPasswordEncoder passwordEncoder;
-    private final JwtUtil jwtUtil; // ⭐ NOUVEAU
+    private final JwtUtil jwtUtil; //
 
     /**
      * Constructeur avec injection de dépendances
      *
      * @param userRepository    Repository User
      * @param patientRepository Repository Patient
-     * @param jwtUtil           Utilitaire JWT ⭐ NOUVEAU
+     * @param jwtUtil           Utilitaire JWT
      */
     public AuthService(UserRepository userRepository,
             PatientRepository patientRepository,
-            JwtUtil jwtUtil) { // ⭐ NOUVEAU paramètre
+            DoctorRepository doctorRepository,
+            JwtUtil jwtUtil) { // paramètre
         this.userRepository = userRepository;
         this.patientRepository = patientRepository;
+        this.doctorRepository = doctorRepository;
         this.passwordEncoder = new BCryptPasswordEncoder();
-        this.jwtUtil = jwtUtil; // ⭐ NOUVEAU
+        this.jwtUtil = jwtUtil; //
     }
 
     /**
@@ -70,14 +75,14 @@ public class AuthService {
      * 1. Vérifier email unique (RG-01)
      * 2. Créer User (role=PATIENT, password hashé)
      * 3. Créer Patient (lié au User)
-     * 4. Générer token JWT ⭐ NOUVEAU
+     * 4. Générer token JWT
      * 5. Retourner LoginResponse avec token
      *
      * RÈGLES MÉTIER:
      * - RG-01: Email doit être unique
      * - Password hashé en BCrypt
      * - Patient créé automatiquement
-     * - Token JWT généré automatiquement ⭐ NOUVEAU
+     * - Token JWT généré automatiquement
      *
      * @param request RegisterRequest (email, password, firstName, lastName, phone)
      * @return LoginResponse avec infos user + patientId + token JWT
@@ -139,13 +144,13 @@ public class AuthService {
      * 2. Vérifier password (BCrypt)
      * 3. Mettre à jour lastLoginAt
      * 4. Charger Patient ou Doctor si applicable
-     * 5. Générer token JWT ⭐ NOUVEAU
+     * 5. Générer token JWT
      * 6. Retourner LoginResponse avec token
      *
      * SÉCURITÉ:
      * - Vérification BCrypt du password
      * - Message d'erreur générique (sécurité)
-     * - Token JWT signé et valide 1h ⭐ NOUVEAU
+     * - Token JWT signé et valide 1h
      *
      * @param request LoginRequest (email, password)
      * @return LoginResponse avec infos user + patientId/doctorId + token JWT
@@ -179,9 +184,10 @@ public class AuthService {
                 break;
 
             case DOCTOR:
-                // TODO: Implémenter dans DoctorService
-                // Pour l'instant, on laisse doctorId = null
-                // On l'implémentera dans la prochaine partie
+                // ✅ IMPLÉMENTÉ : Chercher Doctor lié à ce User
+                doctorId = doctorRepository.findByUser(user)
+                        .map(Doctor::getId)
+                        .orElse(null);
                 break;
 
             case ADMIN:
