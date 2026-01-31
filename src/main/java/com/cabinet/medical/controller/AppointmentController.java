@@ -428,6 +428,56 @@ public class AppointmentController {
     }
 
     /**
+     * Confirmer un rendez-vous (UC-D05 - Médecin confirme un RDV)
+     *
+     * UTILISATION:
+     * - Médecin confirme un RDV en attente
+     * - Change status: PENDING → CONFIRMED
+     *
+     * PERMISSIONS:
+     * - DOCTOR: Peut confirmer ses propres RDV uniquement
+     * - ADMIN: Peut confirmer n'importe quel RDV
+     *
+     * FLOW:
+     * 1. Vérifier que RDV existe
+     * 2. Vérifier que status = PENDING
+     * 3. Update status = CONFIRMED
+     * 4. Créer notification pour le patient
+     * 5. Retourner AppointmentResponse mis à jour
+     *
+     * EXEMPLE:
+     * POST /api/appointments/1/confirm
+     *
+     * RÉPONSE 200 OK:
+     * {
+     * "id": 1,
+     * "patientId": 1,
+     * "patientName": "Jean Dupont",
+     * "doctorId": 1,
+     * "doctorName": "Dr. Pierre Dupont",
+     * "dateTime": "2026-02-03T14:00:00",
+     * "reason": "Consultation",
+     * "status": "CONFIRMED",
+     * "createdAt": "2026-01-31T10:00:00",
+     * "updatedAt": "2026-01-31T18:00:00"
+     * }
+     *
+     * ERREURS:
+     * - 404: RDV non trouvé
+     * - 400: RDV déjà confirmé ou annulé
+     *
+     * @param appointmentId ID du RDV
+     * @return ResponseEntity<AppointmentResponse>
+     */
+    @PostMapping("/{id}/confirm")
+    public ResponseEntity<AppointmentResponse> confirmAppointment(
+            @PathVariable("id") Long appointmentId) {
+
+        AppointmentResponse appointment = appointmentService.confirmAppointment(appointmentId);
+        return ResponseEntity.ok(appointment);
+    }
+
+    /**
      * Annuler un rendez-vous (UC-P08, UC-D06, UC-A11)
      *
      * UTILISATION:

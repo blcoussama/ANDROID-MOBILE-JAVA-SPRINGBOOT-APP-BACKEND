@@ -339,6 +339,48 @@ public class AppointmentService {
     }
 
     /**
+     * Confirmer un RDV (UC-D05 - Médecin confirme un RDV)
+     *
+     * FLOW:
+     * 1. Charger Appointment existant
+     * 2. Vérifier que status est PENDING
+     * 3. Update status = CONFIRMED
+     * 4. Créer notification de confirmation
+     * 5. Sauvegarder
+     *
+     * @param appointmentId ID du RDV
+     * @return AppointmentResponse mis à jour
+     * @throws ResourceNotFoundException si RDV non trouvé
+     * @throws IllegalStateException si RDV déjà confirmé ou annulé
+     */
+    @Transactional
+    public AppointmentResponse confirmAppointment(Long appointmentId) {
+        // 1. Charger Appointment existant
+        Appointment appointment = appointmentRepository.findById(appointmentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Rendez-vous", "id", appointmentId));
+
+        // 2. Vérifier que le RDV est PENDING
+        if (appointment.getStatus() != Appointment.AppointmentStatus.PENDING) {
+            throw new IllegalStateException("Seuls les rendez-vous en attente peuvent être confirmés");
+        }
+
+        // 3. Update status = CONFIRMED
+        appointment.setStatus(Appointment.AppointmentStatus.CONFIRMED);
+
+        // 4. Forcer la mise à jour de updatedAt
+        appointment.setUpdatedAt(LocalDateTime.now());
+
+        // 5. Créer notification de confirmation
+        createConfirmationNotification(appointment);
+
+        // 6. Sauvegarder
+        Appointment confirmed = appointmentRepository.save(appointment);
+
+        // 7. Retourner AppointmentResponse
+        return AppointmentResponse.from(confirmed);
+    }
+
+    /**
      * Annuler un RDV (UC-P08, UC-D06, UC-A11)
      *
      * FLOW:
