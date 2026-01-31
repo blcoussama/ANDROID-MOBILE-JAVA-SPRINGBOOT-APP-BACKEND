@@ -3,6 +3,7 @@ package com.cabinet.medical.controller;
 import com.cabinet.medical.dto.response.DashboardResponse;
 import com.cabinet.medical.service.DashboardService;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -58,7 +59,11 @@ public class DashboardController {
      *
      * PERMISSIONS:
      * - ADMIN uniquement
-     * - TODO: Ajouter @PreAuthorize("hasRole('ADMIN')")
+     * - ✅ Protégé par @PreAuthorize("hasRole('ADMIN')")
+     *
+     * SÉCURITÉ:
+     * - Seul ADMIN peut accéder
+     * - PATIENT/DOCTOR → 403 FORBIDDEN
      *
      * EXEMPLE:
      * GET /api/admin/dashboard
@@ -145,6 +150,7 @@ public class DashboardController {
      *
      * @return ResponseEntity<DashboardResponse>
      */
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping
     public ResponseEntity<DashboardResponse> getDashboard() {
         DashboardResponse dashboard = dashboardService.getDashboard();
