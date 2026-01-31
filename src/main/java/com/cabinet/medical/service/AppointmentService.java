@@ -2,8 +2,6 @@ package com.cabinet.medical.service;
 
 import com.cabinet.medical.dto.request.CancelAppointmentRequest;
 import com.cabinet.medical.dto.request.CreateAppointmentRequest;
-import com.cabinet.medical.dto.request.MoveAppointmentRequest;
-import com.cabinet.medical.dto.request.UpdateAppointmentRequest;
 import com.cabinet.medical.dto.response.AppointmentResponse;
 import com.cabinet.medical.entity.Appointment;
 import com.cabinet.medical.entity.Doctor;
@@ -31,22 +29,18 @@ import java.util.stream.Collectors;
  * - Vérification disponibilité créneau (RG-02)
  * - Création automatique des notifications (RG-06, RG-07)
  * - Gestion des annulations avec raison
- * - Déplacement de RDV (Admin uniquement)
- * - Calcul des créneaux disponibles (résout TODO TimeSlotService)
+ * - Calcul des créneaux disponibles
  *
  * USE CASES:
  * - UC-P03: Patient consulter historique RDV
  * - UC-P06: Patient prendre RDV (+ notifications)
- * - UC-P07: Patient modifier RDV
  * - UC-P08: Patient annuler RDV
  * - UC-D03: Doctor consulter ses RDV
  * - UC-D04: Doctor voir détails RDV
- * - UC-D05: Doctor modifier RDV
+ * - UC-D05: Doctor confirmer RDV
  * - UC-D06: Doctor annuler RDV
  * - UC-A09: Admin voir TOUS les RDV
- * - UC-A10: Admin modifier RDV
  * - UC-A11: Admin annuler RDV
- * - UC-A12: Admin déplacer RDV
  *
  * RÈGLES MÉTIER:
  * - RG-02: Un seul RDV par créneau médecin
@@ -282,61 +276,6 @@ public class AppointmentService {
         return AppointmentResponse.from(appointment);
     }
 
-    /**
-     * Modifier un RDV (UC-P07, UC-D05, UC-A10)
-     *
-     * FLOW:
-     * 1. Charger Appointment existant
-     * 2. Si dateTime changé, vérifier nouveau créneau disponible (RG-02)
-     * 3. Mettre à jour champs
-     * 4. Créer nouvelle notification si dateTime changé
-     * 5. Retourner AppointmentResponse
-     *
-     * @param appointmentId ID du RDV
-     * @param request       UpdateAppointmentRequest
-     * @return AppointmentResponse
-     * @throws ResourceNotFoundException    si RDV non trouvé
-     * @throws AppointmentConflictException si nouveau créneau déjà pris
-     */
-    @Transactional
-    public AppointmentResponse updateAppointment(Long appointmentId, UpdateAppointmentRequest request) {
-        // 1. Charger Appointment existant
-        Appointment appointment = appointmentRepository.findById(appointmentId)
-                .orElseThrow(() -> new ResourceNotFoundException("Rendez-vous", "id", appointmentId));
-
-        // 2. Si dateTime changé, vérifier disponibilité (RG-02)
-        if (request.getDateTime() != null &&
-                !request.getDateTime().equals(appointment.getDateTime())) {
-
-            // Vérifier que le nouveau créneau est disponible
-            if (!isTimeSlotAvailable(appointment.getDoctor(), request.getDateTime())) {
-                throw new AppointmentConflictException(
-                        appointment.getDoctor().getUser().getFirstName() + " " +
-                                appointment.getDoctor().getUser().getLastName(),
-                        request.getDateTime());
-            }
-
-            // Mettre à jour dateTime
-            appointment.setDateTime(request.getDateTime());
-
-            // Créer notification de modification
-            createModificationNotification(appointment, "modifié");
-        }
-
-        // 3. Mettre à jour reason si fourni
-        if (request.getReason() != null && !request.getReason().isEmpty()) {
-            appointment.setReason(request.getReason());
-        }
-
-        // 🔧 FIX: Forcer la mise à jour de updatedAt
-        appointment.setUpdatedAt(LocalDateTime.now());
-
-        // 4. Sauvegarder
-        Appointment updatedAppointment = appointmentRepository.save(appointment);
-
-        // 5. Retourner AppointmentResponse
-        return AppointmentResponse.from(updatedAppointment);
-    }
 
     /**
      * Confirmer un RDV (UC-D05 - Médecin confirme un RDV)
@@ -425,79 +364,6 @@ public class AppointmentService {
         appointmentRepository.save(appointment);
     }
 
-    /**
-     * Déplacer un RDV (UC-A12 - Admin uniquement)
-     *
-     * FLOW:
-     * 1. Charger Appointment existant
-     * 2. Valider nouveau médecin existe
-     * 3. Vérifier nouveau créneau disponible (RG-02)
-     * 4. Mettre à jour doctorId + dateTime
-     * 5. Créer notification déplacement
-     * 6. Retourner AppointmentResponse
-     *
-     * @param appointmentId ID du RDV
-     * @param request       MoveAppointmentRequest
-     * @return AppointmentResponse
-     * @throws ResourceNotFoundException    si RDV ou médecin non trouvé
-     * @throws AppointmentConflictException si nouveau créneau déjà pris
-     */
-    @Transactional
-    public AppointmentResponse moveAppointment(Long appointmentId, MoveAppointmentRequest request) {
-        // 1. Charger Appointment existant
-        Appointment appointment = appointmentRepository.findById(appointmentId)
-                .orElseThrow(() -> new ResourceNotFoundException("Rendez-vous", "id", appointmentId));
-
-        // 2. Valider nouveau médecin existe
-        Doctor newDoctor = doctorService.getDoctorEntityById(request.getNewDoctorId());
-
-        // 3. Vérifier nouveau créneau disponible (RG-02)
-        if (!isTimeSlotAvailable(newDoctor, request.getNewDateTime())) {
-            throw new AppointmentConflictException(
-                    newDoctor.getUser().getFirstName() + " " + newDoctor.getUser().getLastName(),
-                    request.getNewDateTime());
-        }
-
-        // 4. Mettre à jour doctor + dateTime
-        appointment.setDoctor(newDoctor);
-        appointment.setDateTime(request.getNewDateTime());
-
-        // 🔧 FIX: Forcer la mise à jour de updatedAt
-        appointment.setUpdatedAt(LocalDateTime.now());
-
-        // 5. Créer notification déplacement
-        createModificationNotification(appointment, "déplacé");
-
-        // 6. Sauvegarder et retourner
-        Appointment movedAppointment = appointmentRepository.save(appointment);
-        return AppointmentResponse.from(movedAppointment);
-    }
-
-    /**
-     * Créer notification de modification
-     *
-     * @param appointment RDV modifié
-     * @param action      "modifié" ou "déplacé"
-     */
-    private void createModificationNotification(Appointment appointment, String action) {
-        Notification notification = new Notification();
-        notification.setAppointment(appointment);
-        notification.setUser(appointment.getPatient().getUser());
-        notification.setType(Notification.NotificationType.CONFIRMATION);
-
-        String doctorName = "Dr. " + appointment.getDoctor().getUser().getFirstName() +
-                " " + appointment.getDoctor().getUser().getLastName();
-        String message = String.format(
-                "Votre rendez-vous a été %s. Nouveau RDV avec %s le %s à %s.",
-                action,
-                doctorName,
-                appointment.getDateTime().toLocalDate(),
-                appointment.getDateTime().toLocalTime());
-        notification.setMessage(message);
-        notification.setSentAt(LocalDateTime.now());
-
-        notificationRepository.save(notification);
-    }
 
     /**
      * Créer notification d'annulation
