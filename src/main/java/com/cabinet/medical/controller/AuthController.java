@@ -219,4 +219,65 @@ public class AuthController {
 
         return ResponseEntity.ok(response);
     }
+
+    /**
+     * Valider le token JWT (UC-VALIDATE)
+     *
+     * ENDPOINT: GET /api/auth/validate
+     *
+     * SÉCURITÉ:
+     * - Endpoint protégé par Spring Security (ligne 130 SecurityConfig)
+     * - JwtAuthenticationFilter valide automatiquement le token
+     * - Si token invalide/expiré → 401 UNAUTHORIZED (automatique)
+     * - Si token valide → Ce controller est appelé → 200 OK
+     *
+     * FLOW:
+     * 1. Client envoie: Header "Authorization: Bearer {token}"
+     * 2. JwtAuthenticationFilter intercepte la requête
+     * 3. JwtAuthenticationFilter valide le token (signature + expiration)
+     * 4. Si token INVALIDE → 401 automatique (ne passe PAS au controller)
+     * 5. Si token VALIDE → Controller appelé et retourne 200 OK
+     *
+     * UTILISATION ANDROID (SplashActivity):
+     * - Au démarrage de l'app
+     * - Vérifier si le token stocké est encore valide
+     * - Si 200 OK → MainActivity (utilisateur connecté)
+     * - Si 401 UNAUTHORIZED → LoginActivity (token expiré)
+     * - Si erreur réseau → LoginActivity (sécurité)
+     *
+     * EXEMPLE REQUÊTE:
+     * GET /api/auth/validate
+     * Header: Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+     *
+     * RESPONSE 200 OK (token valide):
+     * {
+     *   "valid": true,
+     *   "message": "Token valide"
+     * }
+     *
+     * RESPONSE 401 UNAUTHORIZED (token expiré/invalide):
+     * {
+     *   "timestamp": "2025-01-31T10:00:00",
+     *   "status": 401,
+     *   "error": "Unauthorized",
+     *   "message": "Token invalide ou expiré",
+     *   "path": "/api/auth/validate",
+     *   "errors": null
+     * }
+     *
+     * NOTE IMPORTANTE:
+     * Si cette méthode est exécutée, le token est FORCÉMENT valide
+     * (sinon Spring Security aurait retourné 401 avant d'arriver ici)
+     *
+     * @return ResponseEntity<Map<String, Object>> avec status 200 OK
+     */
+    @GetMapping("/validate")
+    public ResponseEntity<Map<String, Object>> validateToken() {
+        // Si on arrive ici, le token est valide (vérifié par JwtAuthenticationFilter)
+        Map<String, Object> response = new HashMap<>();
+        response.put("valid", true);
+        response.put("message", "Token valide");
+
+        return ResponseEntity.ok(response);
+    }
 }
