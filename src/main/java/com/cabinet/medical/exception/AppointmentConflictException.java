@@ -1,6 +1,7 @@
 package com.cabinet.medical.exception;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 /**
  * AppointmentConflictException - Exception levée quand un créneau est déjà
@@ -41,8 +42,10 @@ public class AppointmentConflictException extends RuntimeException {
      * @param dateTime   Date et heure du RDV
      */
     public AppointmentConflictException(String doctorName, LocalDateTime dateTime) {
-        super(String.format("Le créneau du %s est déjà réservé pour %s",
-                dateTime.toString(), doctorName));
+        super(String.format("Un rendez-vous est déjà réservé le %s à %s pour %s",
+                dateTime.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")),
+                dateTime.format(DateTimeFormatter.ofPattern("HH:mm")),
+                doctorName));
         this.doctorName = doctorName;
         this.dateTime = dateTime;
     }
