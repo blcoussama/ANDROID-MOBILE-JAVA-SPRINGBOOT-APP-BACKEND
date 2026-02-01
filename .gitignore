@@ -19,6 +19,9 @@ target/
 *.iml
 *.ipr
 
+### markdown ###
+*.md
+
 ### NetBeans ###
 /nbproject/private/
 /nbbuild/
