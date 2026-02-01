@@ -21,6 +21,7 @@ target/
 
 ### markdown ###
 *.md
+*.txt
 
 ### NetBeans ###
 /nbproject/private/
