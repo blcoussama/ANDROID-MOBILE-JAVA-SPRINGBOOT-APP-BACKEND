@@ -1,0 +1,64 @@
+═══════════════════════════════════════════════════════════════
+    INFORMATIONS DE TEST - APPLICATION CABINET MÉDICAL
+═══════════════════════════════════════════════════════════════
+
+📱 APPLICATION: Cabinet Médical - Par BELCADI Oussama
+
+═══════════════════════════════════════════════════════════════
+🔐 COMPTE ADMINISTRATEUR
+═══════════════════════════════════════════════════════════════
+
+Email    : admin@email.com
+Password : admin123
+
+Rôle: ADMINISTRATEUR (Accès complet au système)
+
+═══════════════════════════════════════════════════════════════
+📋 INSTRUCTIONS DE TEST
+═══════════════════════════════════════════════════════════════
+
+1. Installez le fichier APK sur votre téléphone Android
+
+2. Activez le MODE CLAIR sur votre téléphone pour une meilleure
+   visibilité des couleurs et composants UI
+   (Paramètres → Affichage → Désactiver "Mode sombre")
+
+3. Connectez-vous avec le compte administrateur ci-dessus
+
+4. L'administrateur peut CRÉER tous les autres utilisateurs:
+   - Médecins (avec spécialité)
+   - Patients
+
+   Utilisez le bouton "+" en bas à droite dans chaque section
+   pour créer de nouveaux utilisateurs
+
+5. Testez les différents rôles:
+   - Déconnectez-vous
+   - Reconnectez-vous avec les comptes créés
+   - Explorez les fonctionnalités de chaque rôle
+
+═══════════════════════════════════════════════════════════════
+👥 FONCTIONNALITÉS PAR RÔLE
+═══════════════════════════════════════════════════════════════
+
+🔧 ADMINISTRATEUR:
+   ✓ Créer/Modifier/Supprimer des médecins et patients
+   ✓ Voir tous les rendez-vous du cabinet
+   ✓ Consulter les statistiques globales
+
+👨‍⚕️ MÉDECIN:
+   ✓ Créer/Modifier/Supprimer ses créneaux horaires
+   ✓ Voir et gérer ses rendez-vous
+   ✓ Confirmer ou annuler des consultations
+
+🧑 PATIENT:
+   ✓ Prendre des rendez-vous avec un médecin
+   ✓ Voir l'historique de ses consultations
+   ✓ Annuler ses rendez-vous
+
+═══════════════════════════════════════════════════════════════
+
+📝 NOTE: Consultez le fichier GUIDE-TEST-APPLICATION.txt pour
+          des instructions détaillées et un scénario de test complet.
+
+═══════════════════════════════════════════════════════════════
