@@ -31,3 +31,17 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Documentation et fichiers d'apprentissage (ne pas pousser en production) ###
+EXPLICATIONS/
+AVANCEMENTS/
+EXPLICATIONS-FICHIER-APK.md
+SYSTEME-RESERVATION-EXPLICATION.md
+CONCEPTION.md
+ANDROID-CONCEPTION-PLANNING.md
+IMPLEMENTATION_ADMIN_PATIENTS_RDV.md
+IMPLEMENTATION_TIMESLOTS_DOCTOR.md
+.claude/
+*.swp
+*.swo
+*~
