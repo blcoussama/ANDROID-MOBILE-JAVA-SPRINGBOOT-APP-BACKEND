@@ -32,6 +32,9 @@ build/
 ### VS Code ###
 .vscode/
 
+### Environment variables (secrets) ###
+.env
+
 ### Documentation et fichiers d'apprentissage (ne pas pousser en production) ###
 EXPLICATIONS/
 AVANCEMENTS/
