@@ -99,4 +99,13 @@ public class UpdateUserRequest {
      */
     @Pattern(regexp = "^[0-9]{10}$", message = "Le téléphone doit contenir 10 chiffres")
     private String phone;
+
+    /**
+     * Spécialité (pour les médecins uniquement)
+     *
+     * VALIDATION:
+     * - Optionnel pour patients (null ou vide)
+     * - Obligatoire pour médecins (vérifié dans Service)
+     */
+    private String specialty;
 }

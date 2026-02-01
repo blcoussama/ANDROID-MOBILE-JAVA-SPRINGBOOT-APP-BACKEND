@@ -5,12 +5,10 @@ import com.cabinet.medical.dto.request.CreateAppointmentRequest;
 import com.cabinet.medical.dto.response.AppointmentResponse;
 import com.cabinet.medical.entity.Appointment;
 import com.cabinet.medical.entity.Doctor;
-import com.cabinet.medical.entity.Notification;
 import com.cabinet.medical.entity.Patient;
 import com.cabinet.medical.exception.AppointmentConflictException;
 import com.cabinet.medical.exception.ResourceNotFoundException;
 import com.cabinet.medical.repository.AppointmentRepository;
-import com.cabinet.medical.repository.NotificationRepository;
 import com.cabinet.medical.repository.PatientRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,13 +25,12 @@ import java.util.stream.Collectors;
  * RESPONSABILITÉS:
  * - CRUD des rendez-vous (Appointments)
  * - Vérification disponibilité créneau (RG-02)
- * - Création automatique des notifications (RG-06, RG-07)
  * - Gestion des annulations avec raison
  * - Calcul des créneaux disponibles
  *
  * USE CASES:
  * - UC-P03: Patient consulter historique RDV
- * - UC-P06: Patient prendre RDV (+ notifications)
+ * - UC-P06: Patient prendre RDV
  * - UC-P08: Patient annuler RDV
  * - UC-D03: Doctor consulter ses RDV
  * - UC-D04: Doctor voir détails RDV
@@ -47,8 +44,6 @@ import java.util.stream.Collectors;
  * - RG-03: Patient peut annuler/modifier ses RDV
  * - RG-04: Doctor peut annuler/modifier ses RDV
  * - RG-05: Admin peut tout faire
- * - RG-06: Notification CONFIRMATION envoyée lors création RDV
- * - RG-07: Notifications REMINDER envoyées avant RDV
  */
 @Service
 public class AppointmentService {
@@ -57,27 +52,23 @@ public class AppointmentService {
     private final PatientRepository patientRepository;
     private final DoctorService doctorService;
     private final TimeSlotService timeSlotService;
-    private final NotificationRepository notificationRepository;
 
     /**
      * Constructeur avec injection de dépendances
      *
-     * @param appointmentRepository  Repository Appointment
-     * @param patientRepository      Repository Patient
-     * @param doctorService          Service Doctor
-     * @param timeSlotService        Service TimeSlot
-     * @param notificationRepository Repository Notification
+     * @param appointmentRepository Repository Appointment
+     * @param patientRepository     Repository Patient
+     * @param doctorService         Service Doctor
+     * @param timeSlotService       Service TimeSlot
      */
     public AppointmentService(AppointmentRepository appointmentRepository,
             PatientRepository patientRepository,
             DoctorService doctorService,
-            TimeSlotService timeSlotService,
-            NotificationRepository notificationRepository) {
+            TimeSlotService timeSlotService) {
         this.appointmentRepository = appointmentRepository;
         this.patientRepository = patientRepository;
         this.doctorService = doctorService;
         this.timeSlotService = timeSlotService;
-        this.notificationRepository = notificationRepository;
     }
 
     /**
@@ -88,14 +79,10 @@ public class AppointmentService {
      * 2. Valider existence patient
      * 3. Vérifier créneau disponible (RG-02)
      * 4. Créer Appointment (status=PENDING)
-     * 5. Créer Notification CONFIRMATION (RG-06)
-     * 6. Créer Notification REMINDER (RG-07)
-     * 7. Retourner AppointmentResponse
+     * 5. Retourner AppointmentResponse
      *
      * RÈGLES MÉTIER:
      * - RG-02: Un seul RDV par créneau médecin
-     * - RG-06: Notification CONFIRMATION immédiate
-     * - RG-07: Notification REMINDER différée
      *
      * @param patientId ID du patient qui prend RDV
      * @param request   CreateAppointmentRequest
@@ -129,13 +116,7 @@ public class AppointmentService {
 
         Appointment savedAppointment = appointmentRepository.save(appointment);
 
-        // 5. Créer Notification CONFIRMATION (RG-06)
-        createConfirmationNotification(savedAppointment);
-
-        // 6. Créer Notification REMINDER (RG-07)
-        createReminderNotification(savedAppointment);
-
-        // 7. Retourner AppointmentResponse
+        // 5. Retourner AppointmentResponse
         return AppointmentResponse.from(savedAppointment);
     }
 
@@ -156,66 +137,6 @@ public class AppointmentService {
         return !appointmentRepository.existsByDoctorAndDateTime(doctor, dateTime);
     }
 
-    /**
-     * Créer notification de confirmation (RG-06)
-     *
-     * TYPE: CONFIRMATION
-     * ENVOI: Immédiat (sentAt = NOW)
-     * DESTINATAIRE: Patient qui a pris le RDV
-     *
-     * @param appointment Rendez-vous créé
-     */
-    private void createConfirmationNotification(Appointment appointment) {
-        Notification notification = new Notification();
-        notification.setAppointment(appointment);
-        notification.setUser(appointment.getPatient().getUser());
-        notification.setType(Notification.NotificationType.CONFIRMATION);
-
-        // Message de confirmation
-        String doctorName = "Dr. " + appointment.getDoctor().getUser().getFirstName() +
-                " " + appointment.getDoctor().getUser().getLastName();
-        String message = String.format(
-                "Votre rendez-vous avec %s le %s à %s a été confirmé.",
-                doctorName,
-                appointment.getDateTime().toLocalDate(),
-                appointment.getDateTime().toLocalTime());
-        notification.setMessage(message);
-
-        // Envoi immédiat
-        notification.setSentAt(LocalDateTime.now());
-
-        notificationRepository.save(notification);
-    }
-
-    /**
-     * Créer notification de rappel (RG-07)
-     *
-     * TYPE: REMINDER
-     * ENVOI: Différé (sentAt = NULL, envoyé 24h avant par job Cron)
-     * DESTINATAIRE: Patient qui a pris le RDV
-     *
-     * @param appointment Rendez-vous créé
-     */
-    private void createReminderNotification(Appointment appointment) {
-        Notification notification = new Notification();
-        notification.setAppointment(appointment);
-        notification.setUser(appointment.getPatient().getUser());
-        notification.setType(Notification.NotificationType.REMINDER);
-
-        // Message de rappel
-        String doctorName = "Dr. " + appointment.getDoctor().getUser().getFirstName() +
-                " " + appointment.getDoctor().getUser().getLastName();
-        String message = String.format(
-                "Rappel: Vous avez rendez-vous avec %s demain à %s.",
-                doctorName,
-                appointment.getDateTime().toLocalTime());
-        notification.setMessage(message);
-
-        // Envoi différé (sera envoyé par NotificationService)
-        notification.setSentAt(null);
-
-        notificationRepository.save(notification);
-    }
 
     /**
      * Obtenir tous les RDV d'un patient (UC-P03)
@@ -284,8 +205,7 @@ public class AppointmentService {
      * 1. Charger Appointment existant
      * 2. Vérifier que status est PENDING
      * 3. Update status = CONFIRMED
-     * 4. Créer notification de confirmation
-     * 5. Sauvegarder
+     * 4. Sauvegarder
      *
      * @param appointmentId ID du RDV
      * @return AppointmentResponse mis à jour
@@ -309,13 +229,10 @@ public class AppointmentService {
         // 4. Forcer la mise à jour de updatedAt
         appointment.setUpdatedAt(LocalDateTime.now());
 
-        // 5. Créer notification de confirmation
-        createConfirmationNotification(appointment);
-
-        // 6. Sauvegarder
+        // 5. Sauvegarder
         Appointment confirmed = appointmentRepository.save(appointment);
 
-        // 7. Retourner AppointmentResponse
+        // 6. Retourner AppointmentResponse
         return AppointmentResponse.from(confirmed);
     }
 
@@ -327,8 +244,7 @@ public class AppointmentService {
      * 2. Update status = CANCELLED
      * 3. Update cancelledBy (PATIENT/DOCTOR/ADMIN)
      * 4. Update cancellationReason
-     * 5. Créer notification annulation
-     * 6. Sauvegarder
+     * 5. Sauvegarder
      *
      * @param appointmentId ID du RDV
      * @param request       CancelAppointmentRequest
@@ -357,43 +273,8 @@ public class AppointmentService {
         // 🔧 FIX: Forcer la mise à jour de updatedAt
         appointment.setUpdatedAt(LocalDateTime.now());
 
-        // 5. Créer notification annulation
-        createCancellationNotification(appointment, cancelledBy);
-
-        // 6. Sauvegarder
+        // 5. Sauvegarder
         appointmentRepository.save(appointment);
-    }
-
-
-    /**
-     * Créer notification d'annulation
-     *
-     * @param appointment RDV annulé
-     * @param cancelledBy Qui a annulé
-     */
-    private void createCancellationNotification(Appointment appointment,
-            Appointment.CancelledBy cancelledBy) {
-        Notification notification = new Notification();
-        notification.setAppointment(appointment);
-        notification.setUser(appointment.getPatient().getUser());
-        notification.setType(Notification.NotificationType.CONFIRMATION);
-
-        String doctorName = "Dr. " + appointment.getDoctor().getUser().getFirstName() +
-                " " + appointment.getDoctor().getUser().getLastName();
-
-        String cancelledByText = cancelledBy == Appointment.CancelledBy.PATIENT ? "vous"
-                : (cancelledBy == Appointment.CancelledBy.DOCTOR ? "le médecin" : "l'administration");
-
-        String message = String.format(
-                "Votre rendez-vous avec %s le %s à %s a été annulé par %s.",
-                doctorName,
-                appointment.getDateTime().toLocalDate(),
-                appointment.getDateTime().toLocalTime(),
-                cancelledByText);
-        notification.setMessage(message);
-        notification.setSentAt(LocalDateTime.now());
-
-        notificationRepository.save(notification);
     }
 
     /**

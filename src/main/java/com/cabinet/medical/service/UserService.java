@@ -3,14 +3,18 @@ package com.cabinet.medical.service;
 import com.cabinet.medical.dto.request.CreateUserRequest;
 import com.cabinet.medical.dto.request.UpdateUserRequest;
 import com.cabinet.medical.dto.response.UserResponse;
+import com.cabinet.medical.entity.Appointment;
 import com.cabinet.medical.entity.Doctor;
 import com.cabinet.medical.entity.Patient;
+import com.cabinet.medical.entity.TimeSlot;
 import com.cabinet.medical.entity.User;
 import com.cabinet.medical.exception.EmailAlreadyExistsException;
 import com.cabinet.medical.exception.IllegalOperationException;
 import com.cabinet.medical.exception.ResourceNotFoundException;
+import com.cabinet.medical.repository.AppointmentRepository;
 import com.cabinet.medical.repository.DoctorRepository;
 import com.cabinet.medical.repository.PatientRepository;
+import com.cabinet.medical.repository.TimeSlotRepository;
 import com.cabinet.medical.repository.UserRepository;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -48,21 +52,29 @@ public class UserService {
     private final UserRepository userRepository;
     private final PatientRepository patientRepository;
     private final DoctorRepository doctorRepository;
+    private final TimeSlotRepository timeSlotRepository;
+    private final AppointmentRepository appointmentRepository;
     private final BCryptPasswordEncoder passwordEncoder;
 
     /**
      * Constructeur avec injection de dépendances
      *
-     * @param userRepository    Repository User
-     * @param patientRepository Repository Patient
-     * @param doctorRepository  Repository Doctor
+     * @param userRepository        Repository User
+     * @param patientRepository     Repository Patient
+     * @param doctorRepository      Repository Doctor
+     * @param timeSlotRepository    Repository TimeSlot
+     * @param appointmentRepository Repository Appointment
      */
     public UserService(UserRepository userRepository,
             PatientRepository patientRepository,
-            DoctorRepository doctorRepository) {
+            DoctorRepository doctorRepository,
+            TimeSlotRepository timeSlotRepository,
+            AppointmentRepository appointmentRepository) {
         this.userRepository = userRepository;
         this.patientRepository = patientRepository;
         this.doctorRepository = doctorRepository;
+        this.timeSlotRepository = timeSlotRepository;
+        this.appointmentRepository = appointmentRepository;
         this.passwordEncoder = new BCryptPasswordEncoder();
     }
 
@@ -77,7 +89,17 @@ public class UserService {
     public List<UserResponse> getAllUsers() {
         return userRepository.findAll()
                 .stream()
-                .map(UserResponse::from)
+                .map(user -> {
+                    UserResponse response = UserResponse.from(user);
+                    // Ajouter specialty si c'est un médecin
+                    if (user.getRole() == User.Role.DOCTOR) {
+                        Doctor doctor = doctorRepository.findByUser(user).orElse(null);
+                        if (doctor != null) {
+                            response.setSpecialty(doctor.getSpecialty());
+                        }
+                    }
+                    return response;
+                })
                 .collect(Collectors.toList());
     }
 
@@ -95,7 +117,17 @@ public class UserService {
     public List<UserResponse> getUsersByRole(User.Role role) {
         return userRepository.findByRole(role)
                 .stream()
-                .map(UserResponse::from)
+                .map(user -> {
+                    UserResponse response = UserResponse.from(user);
+                    // Ajouter specialty si c'est un médecin
+                    if (user.getRole() == User.Role.DOCTOR) {
+                        Doctor doctor = doctorRepository.findByUser(user).orElse(null);
+                        if (doctor != null) {
+                            response.setSpecialty(doctor.getSpecialty());
+                        }
+                    }
+                    return response;
+                })
                 .collect(Collectors.toList());
     }
 
@@ -110,7 +142,17 @@ public class UserService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Utilisateur", "id", userId));
 
-        return UserResponse.from(user);
+        UserResponse response = UserResponse.from(user);
+
+        // Ajouter specialty si c'est un médecin
+        if (user.getRole() == User.Role.DOCTOR) {
+            Doctor doctor = doctorRepository.findByUser(user).orElse(null);
+            if (doctor != null) {
+                response.setSpecialty(doctor.getSpecialty());
+            }
+        }
+
+        return response;
     }
 
     /**
@@ -284,7 +326,17 @@ public class UserService {
         user.setLastName(request.getLastName());
         user.setPhone(request.getPhone());
 
-        // 4. Mettre à jour password SEULEMENT si fourni ET non vide
+        // 4. Mettre à jour specialty si c'est un médecin
+        String updatedSpecialty = null;
+        if (user.getRole() == User.Role.DOCTOR && request.getSpecialty() != null) {
+            Doctor doctor = doctorRepository.findByUser(user)
+                    .orElseThrow(() -> new ResourceNotFoundException("Doctor", "userId", userId));
+            doctor.setSpecialty(request.getSpecialty());
+            doctorRepository.save(doctor);
+            updatedSpecialty = doctor.getSpecialty();
+        }
+
+        // 5. Mettre à jour password SEULEMENT si fourni ET non vide
         if (request.getPassword() != null && !request.getPassword().trim().isEmpty()) {
             // Valider longueur minimum (6 caractères)
             if (request.getPassword().length() < 6) {
@@ -293,11 +345,13 @@ public class UserService {
             user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
         }
 
-        // 5. Sauvegarder
+        // 6. Sauvegarder
         User updatedUser = userRepository.save(user);
 
-        // 6. Retourner UserResponse
-        return UserResponse.from(updatedUser);
+        // 7. Retourner UserResponse avec specialty pour les médecins
+        UserResponse response = UserResponse.from(updatedUser);
+        response.setSpecialty(updatedSpecialty);
+        return response;
     }
 
     /**
@@ -305,12 +359,12 @@ public class UserService {
      *
      * FLOW:
      * 1. Vérifier User existe
-     * 2. Supprimer entités liées (Patient ou Doctor) en cascade
+     * 2. Supprimer entités liées (TimeSlots, Appointments, Patient/Doctor)
      * 3. Supprimer User
      *
      * NOTE:
-     * - Les entités liées (Patient, Doctor) seront supprimées en cascade
-     * - Les RDV et TimeSlots associés seront aussi supprimés en cascade
+     * - Pour les médecins: Supprimer d'abord les TimeSlots pour éviter FK violation
+     * - Les RDV et autres entités seront supprimés en cascade
      * - Attention: Perte de données définitive
      *
      * @param userId ID de l'utilisateur
@@ -328,11 +382,22 @@ public class UserService {
                     "Vous ne pouvez pas supprimer un administrateur");
         }
 
-        // 2 & 3. Supprimer (cascade automatique via JPA)
-        userRepository.delete(user);
+        // 2. Pour les médecins: Supprimer les entités liées (FK constraints)
+        if (user.getRole() == User.Role.DOCTOR) {
+            Doctor doctor = doctorRepository.findByUser(user).orElse(null);
+            if (doctor != null) {
+                // 2a. Supprimer les Appointments du médecin
+                List<Appointment> appointments = appointmentRepository.findByDoctor(doctor);
+                appointmentRepository.deleteAll(appointments);
 
-        // Note: Les entités Patient/Doctor/Appointments/TimeSlots
-        // seront supprimées automatiquement grâce à cascade=CascadeType.ALL
+                // 2b. Supprimer les TimeSlots
+                List<TimeSlot> timeSlots = timeSlotRepository.findByDoctor(doctor);
+                timeSlotRepository.deleteAll(timeSlots);
+            }
+        }
+
+        // 3. Supprimer User (cascade pour Patient/Doctor)
+        userRepository.delete(user);
     }
 
     /**

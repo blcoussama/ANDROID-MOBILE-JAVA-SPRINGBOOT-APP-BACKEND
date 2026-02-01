@@ -84,6 +84,15 @@ public class UserResponse {
      */
     private LocalDateTime lastLoginAt;
 
+    /**
+     * Spécialité (pour les médecins uniquement)
+     *
+     * VALEURS:
+     * - Non null si role = "DOCTOR"
+     * - null si role = "PATIENT" ou "ADMIN"
+     */
+    private String specialty;
+
     // ═══════════════════════════════════════════════════════════
     // MÉTHODE DE CONVERSION
     // ═══════════════════════════════════════════════════════════
